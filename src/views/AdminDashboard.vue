@@ -155,47 +155,18 @@
                 <i class="ph-bold ph-barcode text-lg"></i> ENTREGAR AGORA
               </button>
 
-              <span v-else class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-400">
-                {{ sol.status }}
-              </span>
+              <div v-else class="flex items-center gap-2">
+                <button @click="handleDeleteSol(sol.id)" class="bg-slate-50 text-slate-300 px-3 py-2 rounded-xl text-xs hover:text-red-500 transition-all border border-slate-100">
+                  <i class="ph ph-trash"></i>
+                </button>
+                <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-400">
+                  {{ sol.status }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- SEÇÃO DE TROCAS (PENDENTE ADMIN) -->
-        <div class="mt-12 space-y-4">
-            <h3 class="text-xl font-black text-[#113366] flex items-center gap-2 px-2">
-              <i class="ph ph-arrows-left-right text-[#ee4d2d]"></i> Trocas entre Líderes
-            </h3>
-            <div class="grid gap-4">
-              <div v-for="trc in trocas" :key="trc.id" 
-                   class="bg-white p-5 rounded-2xl border-2 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-lg"
-                   :class="trc.status_geral === 'PENDENTE_ADMIN' ? 'border-orange-200 bg-orange-50/20 shadow-md' : 'border-slate-100 opacity-60'">
-                <div class="flex items-center gap-4">
-                  <div class="flex -space-x-3">
-                    <div class="w-10 h-10 rounded-lg bg-[#113366] text-white flex items-center justify-center font-black border-2 border-white shadow-sm uppercase">{{ trc.lideres_origem?.nome?.charAt(0) }}</div>
-                    <div class="w-10 h-10 rounded-lg bg-[#ee4d2d] text-white flex items-center justify-center font-black border-2 border-white shadow-sm uppercase">{{ trc.lideres_destino?.nome?.charAt(0) }}</div>
-                  </div>
-                  <div>
-                    <h4 class="font-black text-[#113366] text-xs uppercase">{{ trc.lideres_origem?.nome }} <i class="ph ph-arrow-right mx-1 text-slate-300"></i> {{ trc.lideres_destino?.nome }}</h4>
-                    <p class="text-[10px] font-bold text-slate-400 tracking-widest font-sans">{{ formatDate(trc.data) }}</p>
-                    <div class="flex flex-wrap gap-1 mt-2">
-                      <span v-for="sn in trc.sns" :key="sn" class="text-[9px] font-mono font-black bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm text-[#113366]">{{ sn }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="flex flex-col md:items-end gap-2">
-                  <div v-if="trc.status_geral === 'PENDENTE_ADMIN'" class="flex gap-2 font-sans">
-                    <button @click="handleResponseTroca(trc.id, false)" class="bg-white text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black border border-slate-200 hover:text-red-500">RECUSAR</button>
-                    <button @click="handleResponseTroca(trc.id, true)" class="bg-[#ee4d2d] text-white px-5 py-2 rounded-xl text-[10px] font-black shadow-md hover:scale-105 transition-all">APROVAR TROCA</button>
-                  </div>
-                  <span v-else class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-400">
-                    {{ trc.status_geral }}
-                  </span>
-                </div>
-              </div>
-            </div>
-        </div>
       </div>
 
       <!-- SAÍDE MANUAL TAB -->
@@ -561,18 +532,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { supabase } from '../lib/supabase';
 import { getInfoOperacional } from '../utils/shiftLogic';
 
 // State
-const currentTab = ref('dash');
+// Persistência de Aba
+const currentTab = ref(localStorage.getItem('admin_tab') || 'dash');
+watch(currentTab, (val) => localStorage.setItem('admin_tab', val));
 const loading = ref(true);
 const toasts = ref([]);
 const estoque = ref([]);
 const lideres = ref([]);
 const solicitacoes = ref([]);
-const trocas = ref([]);
 const planejamento = ref([]);
 const areas = ref([]);
 const filtro = ref({ busca: '', status: '' });
@@ -600,8 +572,7 @@ const tabs = [
 
 // Computed
 const badgeCounts = computed(() => ({
-  sol: solicitacoes.value.filter(s => s.status === 'PENDENTE' || s.status === 'APROVADO').length,
-  trc: trocas.value.filter(t => t.status_geral === 'PENDENTE_ADMIN').length
+  sol: solicitacoes.value.filter(s => s.status === 'PENDENTE' || s.status === 'APROVADO').length
 }));
 
 const kpis = computed(() => {
@@ -743,6 +714,15 @@ const handleActionSol = async (id, status) => {
   const { error } = await supabase.from('solicitacoes').update({ status }).eq('id', id);
   if (error) showMessage(error.message, 'erro');
   else showMessage(`Pedido ${status.toLowerCase()} com sucesso!`);
+  loading.value = false;
+};
+
+const handleDeleteSol = async (id) => {
+  if (!confirm('Excluir esta solicitação permanentemente?')) return;
+  loading.value = true;
+  const { error } = await supabase.from('solicitacoes').delete().eq('id', id);
+  if (error) showMessage(error.message, 'erro');
+  else showMessage('Solicitação excluída!');
   loading.value = false;
 };
 
@@ -995,48 +975,6 @@ const handleDeleteAsset = async (sn) => {
     finally { loading.value = false; }
 };
 
-const handleResponseTroca = async (id, approved) => {
-    loading.value = true;
-    try {
-        if (!approved) {
-            await supabase.from('trocas').update({ status_geral: 'CANCELADO' }).eq('id', id);
-            showMessage('Troca rejeitada!');
-        } else {
-            // Get transfer details
-            const { data: trc } = await supabase.from('trocas').select('*').eq('id', id).single();
-            if (!trc) throw new Error('Troca não encontrada');
-
-            const { sns, lider_destino, lider_origem } = trc;
-
-            // 1. Remove from origin
-            await supabase.from('ativos_atuais').delete().in('sn', sns).eq('responsavel_id', lider_origem);
-            
-            // 2. Add to destination
-            const inserts = sns.map(sn => ({ sn, responsavel_id: lider_destino }));
-            await supabase.from('ativos_atuais').upsert(inserts);
-
-            // 3. Log the move
-            const logs = sns.map(sn => ({ 
-                sn, 
-                responsavel_id: lider_destino, 
-                tipo: 'Troca-Entrada', 
-                admin_id: 'Admin Web',
-                observacao: `Vindo de ${trc.lideres_origem?.nome || 'Líder Anterior'}`
-            }));
-            await supabase.from('movimentacoes').insert(logs);
-
-            // 4. Update transfer status
-            await supabase.from('trocas').update({ status_geral: 'CONCLUIDO' }).eq('id', id);
-
-            showMessage('Troca aprovada e ativos transferidos!');
-        }
-        await fetchInitialData();
-    } catch (e) {
-        showMessage(e.message, 'erro');
-    } finally {
-        loading.value = false;
-    }
-};
 
 // Subscriptions
 let allChannel;
@@ -1046,12 +984,10 @@ let debounceTimeout;
 onMounted(() => {
   fetchInitialData();
   allChannel = supabase.channel('global-changes')
-    .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(() => {
-            fetchInitialData();
-        }, 800);
-    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => fetchInitialData())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ativos_atuais' }, () => fetchInitialData())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque' }, () => fetchInitialData())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'planejamento' }, () => fetchInitialData())
     .subscribe();
 });
 

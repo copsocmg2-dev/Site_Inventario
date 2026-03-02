@@ -76,7 +76,7 @@
         </div>
 
         <!-- Meta do Turno -->
-        <div v-if="currentTab === 'home' && metaTurno > 0" class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center justify-between animate-in zoom-in-95 duration-300">
+        <div v-if="currentTab === 'home' && metaTurno > 0" class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center justify-between mb-6 animate-in zoom-in-95 duration-300">
            <div class="flex items-center gap-3">
               <div class="w-10 h-10 bg-blue-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
                  <i class="ph-fill ph-target"></i>
@@ -91,36 +91,13 @@
 
         <!-- Dashboard Content -->
         <div v-if="currentTab === 'home'" class="space-y-6 animate-in fade-in duration-300">
-          <!-- Inbox Transf -->
-          <div v-if="pendingTransfers.length > 0" class="space-y-3">
-             <p class="text-[10px] font-black text-[#EE4D2D] uppercase tracking-widest animate-pulse flex items-center gap-2">
-               <i class="ph-fill ph-warning-circle"></i> Trocas Pendentes
-             </p>
-             <div v-for="trc in pendingTransfers" :key="trc.id" 
-                  class="bg-white border-2 border-indigo-100 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
-                <div class="text-xs font-black text-slate-400 uppercase mb-1">Líder: {{ trc.lideres_origem?.nome }}</div>
-                <div class="text-indigo-600 font-mono font-black mb-3">{{ trc.sns?.join(', ') }}</div>
-                <div class="flex gap-2">
-                  <button @click="handleResponseTransfer(trc.id, false)" class="flex-1 bg-slate-100 text-slate-500 py-2 rounded-xl text-[10px] font-black uppercase">Recusar</button>
-                  <button @click="handleResponseTransfer(trc.id, true)" class="flex-1 bg-indigo-500 text-white py-2 rounded-xl text-[10px] font-black uppercase">Aceitar</button>
-                </div>
-             </div>
-          </div>
-
           <!-- Quick Actions -->
-          <div class="grid grid-cols-2 gap-4">
-             <div @click="currentTab = 'pedir'" class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
+          <div class="flex">
+             <div @click="currentTab = 'pedir'" class="flex-1 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
                 <div class="w-12 h-12 bg-red-50 text-[#EE4D2D] rounded-2xl flex items-center justify-center text-2xl font-black">
                   <i class="ph ph-plus"></i>
                 </div>
                 <span class="text-xs font-black text-slate-500 uppercase">Pedir PDA</span>
-             </div>
-             <div @click="currentTab = 'trocar'" class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
-                <div class="w-12 h-12 bg-blue-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-black">
-                  <i class="ph ph-arrows-left-right"></i>
-                </div>
-                <span class="text-xs font-black text-slate-500 uppercase">Fazer Troca</span>
              </div>
           </div>
 
@@ -170,39 +147,6 @@
            </div>
         </div>
 
-        <!-- Trocar Content -->
-        <div v-if="currentTab === 'trocar'" class="space-y-6 animate-in slide-in-from-bottom-5 duration-300">
-           <div class="bg-white p-6 rounded-[32px] shadow-xl shadow-slate-200/50 space-y-6">
-              <h5 class="text-xl font-black text-[#113366] flex items-center gap-2">
-                <i class="ph ph-arrows-left-right text-indigo-600"></i> Troca entre Líderes
-              </h5>
-              <div class="space-y-4">
-                 <div>
-                    <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Destinatário</label>
-                    <select v-model="formTransfer.targetId" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-black text-slate-600 outline-none focus:border-indigo-500">
-                        <option disabled value="">Quem vai receber?</option>
-                        <option v-for="l in otherLideres" :key="l.id" :value="l.id">{{ l.nome }}</option>
-                    </select>
-                 </div>
-                 <div>
-                    <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Selecione os coletores (Somente desta área)</label>
-                    <div class="grid grid-cols-2 gap-2">
-                       <label v-for="a in myAssetsFiltrado" :key="a.sn" 
-                              :class="['p-4 rounded-2xl border-2 flex items-center gap-3 transition-all cursor-pointer font-mono font-black text-sm', 
-                                      formTransfer.sns.includes(a.sn) ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-50 bg-slate-50 text-slate-400']">
-                          <input type="checkbox" v-model="formTransfer.sns" :value="a.sn" class="hidden">
-                          {{ a.sn }}
-                       </label>
-                       <div v-if="!myAssetsFiltrado.length" class="col-span-2 text-slate-400 text-xs italic">Nenhum PDA disponível para troca.</div>
-                    </div>
-                 </div>
-                 <button @click="handleSubmitTransfer" :disabled="!formTransfer.targetId || !formTransfer.sns.length || loading"
-                         class="w-full bg-[#113366] text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-blue/20 uppercase tracking-widest">
-                    Propor Troca
-                  </button>
-              </div>
-           </div>
-        </div>
       </div>
 
       <!-- Bottom Nav -->
@@ -216,7 +160,6 @@
         <button @click="fetchInitialData" class="flex-1 flex flex-col items-center gap-1 text-slate-300 font-black text-[9px] uppercase tracking-tighter relative">
           <i class="ph ph-arrows-clockwise text-2xl transition-transform duration-700" :class="{ 'rotate-180': !loading }"></i>
           Atualizar
-          <div v-if="pendingTransfers.length" class="absolute top-0 right-1/4 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] border-2 border-white">!</div>
         </button>
       </nav>
 
@@ -294,7 +237,6 @@ const areas = ref([]);
 const selectedLiderId = ref('');
 const userData = ref({});
 const myAssets = ref([]);
-const pendingTransfers = ref([]);
 const requestHistory = ref([]);
 const operationalInfo = ref({});
 const metaTurno = ref(0);
@@ -304,13 +246,11 @@ const toasts = ref([]);
 
 // Forms
 const formOrder = ref({ qty: 1, obs: '' });
-const formTransfer = ref({ targetId: '', sns: [] });
 
 // Static
 const navItems = [
   { id: 'home', label: 'Início', icon: 'ph ph-house', iconActive: 'ph-fill ph-house' },
-  { id: 'pedir', label: 'Solicitar', icon: 'ph ph-plus-circle', iconActive: 'ph-fill ph-plus-circle' },
-  { id: 'trocar', label: 'Transferir', icon: 'ph ph-arrows-left-right', iconActive: 'ph-bold ph-arrows-left-right' }
+  { id: 'pedir', label: 'Solicitar', icon: 'ph ph-plus-circle', iconActive: 'ph-fill ph-plus-circle' }
 ];
 
 // Computed
@@ -399,13 +339,7 @@ const fetchInitialData = async () => {
     const { data: assets } = await supabase.from('ativos_atuais').select('sn').eq('responsavel_id', userId);
     myAssets.value = assets ? assets.map(a => ({ ...a, area_origem: userData.value.area_id })) : [];
 
-    // Get Pending Transfers (where I am destination and status is PENDENTE)
-    const { data: trc } = await supabase.from('trocas')
-      .select('*, lideres_origem:lider_origem(nome)')
-      .eq('lider_destino', userId)
-      .eq('status_destino', 'PENDENTE')
-      .eq('status_geral', 'AGUARDANDO');
-    pendingTransfers.value = trc || [];
+    myAssets.value = assets ? assets.map(a => ({ ...a, area_origem: userData.value.area_id })) : [];
 
     // Get My Requests
     const { data: req } = await supabase.from('solicitacoes')
@@ -471,53 +405,6 @@ const handleSubmitOrder = async () => {
   }
 };
 
-const handleSubmitTransfer = async () => {
-  loading.value = true;
-  try {
-    const { error } = await supabase.from('trocas').insert({
-      lider_origem: userData.value.id,
-      lider_destino: formTransfer.value.targetId,
-      sns: formTransfer.value.sns,
-      status_origem: 'ACEITO',
-      status_destino: 'PENDENTE',
-      status_geral: 'AGUARDANDO'
-    });
-    if (error) throw error;
-
-    formTransfer.value = { targetId: '', sns: [] };
-    currentTab.value = 'home';
-    await fetchInitialData();
-    showMessage('Proposta de troca enviada!');
-  } catch (e) {
-    showMessage(e.message, 'erro');
-  } finally {
-    loading.value = false;
-  }
-};
-
-const handleResponseTransfer = async (id, accepted) => {
-  loading.value = true;
-  try {
-    if (!accepted) {
-      await supabase.from('trocas').update({ 
-        status_destino: 'RECUSADO', 
-        status_geral: 'CANCELADO' 
-      }).eq('id', id);
-      showMessage('Troca recusada.');
-    } else {
-      await supabase.from('trocas').update({ 
-        status_destino: 'ACEITO', 
-        status_geral: 'PENDENTE_ADMIN' 
-      }).eq('id', id);
-      showMessage('Troca aceita! Aguardando Admin.');
-    }
-    await fetchInitialData();
-  } catch (e) {
-    showMessage(e.message, 'erro');
-  } finally {
-    loading.value = false;
-  }
-};
 
 const handleChangeArea = async (areaId, areaNome) => {
   loading.value = true;
@@ -559,14 +446,16 @@ onMounted(async () => {
   }
 
   // Real-time con debounce para evitar excesso de requisições
+  // Real-time Robusto
   const sub = supabase.channel('leader-updates')
-    .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-       if (logado.value) {
-          clearTimeout(realTimeDebounce);
-          realTimeDebounce = setTimeout(() => {
-             fetchInitialData();
-          }, 500);
-       }
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
+       if (logado.value) fetchInitialData();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ativos_atuais' }, () => {
+       if (logado.value) fetchInitialData();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque' }, () => {
+       if (logado.value) fetchInitialData();
     })
     .subscribe();
 
