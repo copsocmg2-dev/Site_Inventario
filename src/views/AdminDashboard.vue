@@ -648,7 +648,7 @@ const onPageList = computed(() => {
       realizado,
       planejado: plan ? plan.quantidade : 0
     };
-  });
+  }).filter(a => a.planejado > 0);
 });
 
 // Methods

@@ -48,8 +48,13 @@
             </div>
             <h5 class="text-xl font-black tracking-tight">{{ userData.nome }}</h5>
           </div>
-          <div class="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-lg font-black border-2 border-white/30">
-            {{ userData.nome?.charAt(0) }}
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-lg font-black border-2 border-white/30">
+              {{ userData.nome?.charAt(0) }}
+            </div>
+            <button @click="showingSettings = true" class="w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-xl transition-colors border border-white/20">
+              <i class="ph-fill ph-gear"></i>
+            </button>
           </div>
         </div>
         <div class="mt-4">
@@ -60,14 +65,20 @@
       </div>
 
       <!-- Content Area -->
-      <div class="flex-1 -mt-16 px-5 pb-24 z-10 transition-all overflow-y-auto">
-        <!-- Balance Card -->
-        <div v-if="currentTab === 'home'" class="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 mb-6 animate-in zoom-in-95 duration-200">
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Meus Coletores</p>
-          <div class="text-6xl font-black text-[#EE4D2D] leading-none mb-3">{{ myAssets.length }}</div>
-          <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase">
-            <i class="ph-fill ph-check-circle"></i> Em operação
-          </div>
+        </div>
+
+        <!-- Meta do Turno -->
+        <div v-if="currentTab === 'home' && metaTurno > 0" class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center justify-between animate-in zoom-in-95 duration-300">
+           <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-blue-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
+                 <i class="ph-fill ph-target"></i>
+              </div>
+              <div>
+                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Meta do Turno</p>
+                 <p class="text-sm font-bold text-[#113366] leading-none">Planejado para {{ userData.areas?.nome }}</p>
+              </div>
+           </div>
+           <div class="text-2xl font-black text-[#113366]">{{ metaTurno }}<span class="text-[10px] text-slate-400"> un.</span></div>
         </div>
 
         <!-- Dashboard Content -->
@@ -214,6 +225,39 @@
          </div>
       </div>
 
+      <!-- Modal Config / Settings -->
+      <div v-if="showingSettings" class="fixed inset-0 bg-[#113366]/40 z-[100] flex items-end justify-center sm:items-center backdrop-blur-sm p-4 animate-in fade-in duration-200" @click.self="showingSettings = false">
+        <div class="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-black text-[#113366]">Configurações</h3>
+            <button @click="showingSettings = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
+              <i class="ph-bold ph-x"></i>
+            </button>
+          </div>
+          <div class="space-y-3">
+             <button @click="showingSettings = false; toggleAreaSelector()" class="w-full flex items-center justify-between p-4 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-colors border border-slate-200">
+                <div class="flex items-center gap-3">
+                   <div class="w-10 h-10 bg-white shadow-sm flex items-center justify-center rounded-xl text-indigo-600"><i class="ph-fill ph-map-pin"></i></div>
+                   <div class="text-left">
+                      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Área Atual</p>
+                      <p class="font-bold text-[#113366]">{{ userData.areas?.nome || 'Sem Área' }}</p>
+                   </div>
+                </div>
+                <i class="ph-bold ph-caret-right text-slate-400"></i>
+             </button>
+             <button @click="handleLogout" class="w-full flex items-center justify-between p-4 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors border border-red-100 mt-4">
+                <div class="flex items-center gap-3">
+                   <div class="w-10 h-10 bg-white shadow-sm flex items-center justify-center rounded-xl text-red-600"><i class="ph-fill ph-sign-out"></i></div>
+                   <div class="text-left">
+                      <p class="font-bold text-red-600">Sair da Conta</p>
+                      <p class="text-[10px] font-black text-red-400 uppercase tracking-widest">Desconectar perfil</p>
+                   </div>
+                </div>
+             </button>
+          </div>
+        </div>
+      </div>
+
     </template>
   </div>
 </template>
@@ -235,7 +279,9 @@ const myAssets = ref([]);
 const pendingTransfers = ref([]);
 const requestHistory = ref([]);
 const operationalInfo = ref({});
+const metaTurno = ref(0);
 const showingAreaSelector = ref(false);
+const showingSettings = ref(false);
 const toasts = ref([]);
 
 // Forms
@@ -337,6 +383,19 @@ const fetchInitialData = async () => {
     areas.value = allAreas || [];
 
     operationalInfo.value = getInfoOperacional();
+
+    // Get Target Plan (Meta do Turno)
+    if (userData.value.area_id) {
+       const { data: plan } = await supabase.from('planejamento')
+          .select('quantidade')
+          .eq('area_id', userData.value.area_id)
+          .eq('data', operationalInfo.value.dataOperacional)
+          .eq('turno', operationalInfo.value.turno)
+          .single();
+       metaTurno.value = plan ? plan.quantidade : 0;
+    } else {
+       metaTurno.value = 0;
+    }
 
   } catch (e) {
     console.error(e);
