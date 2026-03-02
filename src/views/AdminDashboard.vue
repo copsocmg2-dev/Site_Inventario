@@ -172,7 +172,7 @@
                   </div>
                   <div>
                     <h4 class="font-black text-[#113366] text-xs uppercase">{{ trc.lideres_origem?.nome }} <i class="ph ph-arrow-right mx-1 text-slate-300"></i> {{ trc.lideres_destino?.nome }}</h4>
-                    <p class="text-[10px] font-bold text-slate-400 tracking-widest font-sans">{{ formatDate(trc.data_geral) }}</p>
+                    <p class="text-[10px] font-bold text-slate-400 tracking-widest font-sans">{{ formatDate(trc.data) }}</p>
                     <div class="flex flex-wrap gap-1 mt-2">
                       <span v-for="sn in trc.sns" :key="sn" class="text-[9px] font-mono font-black bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm text-[#113366]">{{ sn }}</span>
                     </div>
@@ -479,7 +479,7 @@ const onPageList = computed(() => {
   if (!filtroOnPage.value.data_op || !filtroOnPage.value.turno) return [];
   
   return areas.value.map(area => {
-    const plan = planejamento.value.find(p => p.area_id === area.id && p.data_op === filtroOnPage.value.data_op && p.turno === filtroOnPage.value.turno);
+    const plan = planejamento.value.find(p => p.area_id === area.id && p.data === filtroOnPage.value.data_op && p.turno === filtroOnPage.value.turno);
     
     // Calcula realizado: quantos ativos estão com líderes vinculados a esta área
     const realizado = estoque.value.filter(e => {
@@ -542,7 +542,7 @@ const fetchInitialData = async () => {
     // Transfers
     const { data: trc, error: trcError } = await supabase.from('trocas')
         .select('*, lideres_origem:lider_origem(nome), lideres_destino:lider_destino(nome)')
-        .order('data_geral', { ascending: false });
+        .order('data', { ascending: false });
     if (trcError) throw trcError;
     trocas.value = trc;
 
@@ -711,13 +711,13 @@ const handleSavePlanning = async () => {
     loading.value = true;
     try {
         const payload = Object.entries(formPlan.value.areas).map(([areaId, qty]) => ({
-            data_op: formPlan.value.data_op,
+            data: formPlan.value.data_op,
             turno: formPlan.value.turno,
             area_id: areaId,
             quantidade: qty
         }));
 
-        const { error } = await supabase.from('planejamento').upsert(payload, { onConflict: 'data_op, turno, area_id' });
+        const { error } = await supabase.from('planejamento').upsert(payload, { onConflict: 'data, turno, area_id' });
         if (error) throw error;
         
         showMessage('Planejamento salvo com sucesso!');
