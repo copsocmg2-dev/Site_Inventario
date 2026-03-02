@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>PDA Control | Líder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --primary: #EE4D2D;
+            --primary-dark: #cc3a1d;
+            --navy: #113366;
+            --bg: #F2F4F7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-shell {
+            max-width: 450px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #F2F4F7;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, var(--navy) 0%, #1a4a8a 100%);
+            color: white;
+            padding: 20px 20px 65px 20px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 8px 20px rgba(17, 51, 102, 0.3);
+        }
+
+        .avatar-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 800;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .balance-card {
+            background: white;
+            margin: -50px 20px 0 20px;
+            border-radius: 20px;
+            padding: 22px 24px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.07);
+        }
+
+        .balance-num {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+        }
+
+        .bottom-nav {
+            background: white;
+            border-top: 1px solid #eee;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+            display: flex;
+            padding: 8px 0 4px 0;
+        }
+
+        .nav-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 8px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #aaa;
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .nav-btn.active {
+            color: var(--primary);
+        }
+
+        .nav-btn i {
+            font-size: 1.4rem;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #999;
+            margin: 24px 20px 12px 20px;
+        }
+
+        .card-item {
+            background: white;
+            border-radius: 16px;
+            padding: 18px;
+            margin: 0 20px 12px 20px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+            border: 1px solid #f0f0f0;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .s-pending {
+            background: #FFF8E1;
+            color: #E65100;
+            border: 1px solid #FFCC80;
+        }
+
+        .s-approved {
+            background: #E3F2FD;
+            color: #1565C0;
+            border: 1px solid #90CAF9;
+        }
+
+        .s-done {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #A5D6A7;
+        }
+
+        .s-rejected {
+            background: #FFEBEE;
+            color: #C62828;
+            border: 1px solid #EF9A9A;
+        }
+
+        .btn-primary-full {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary-full:disabled {
+            background: #ccc;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .btn-navy-full {
+            background: var(--navy);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-navy-full:disabled {
+            background: #ccc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .custom-input {
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 13px 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .custom-input:focus {
+            border-color: var(--primary);
+        }
+
+        .custom-select {
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 13px 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            outline: none;
+            background: white;
+        }
+
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 0 20px;
+        }
+
+        .quick-btn {
+            background: white;
+            border: 1px solid #f0f0f0;
+            border-radius: 18px;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .icon-wrap {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .sn-chip {
+            background: #f0f4ff;
+            border: 1px solid #d0e0ff;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--navy);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-notif {
+            position: absolute;
+            top: 0;
+            right: 5px;
+            background: red;
+            color: white;
+            border-radius: 50%;
+            font-size: 0.6rem;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            border: 1px solid white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-shell" id="mainApp">
+
+        <!-- Loader inteligente -->
+        <div class="loader-overlay d-none" id="loader">
+            <div class="spinner-border" style="color:var(--primary);" role="status"></div>
+            <p class="fw-bold text-muted small mt-2">PROCESSANDO...</p>
+        </div>
+
+        <!-- Login -->
+        <div id="tela-identificacao" class="d-none"
+            style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:30px;text-align:center;">
+            <div
+                style="width:70px;height:70px;background:var(--primary);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 8px 20px rgba(238,77,45,0.3);">
+                <i class="fas fa-barcode text-white" style="font-size:2rem;"></i>
+            </div>
+            <h2 class="fw-bold">Líder PDA</h2>
+            <p class="text-muted small mb-4">Selecione seu nome para gerenciar ativos</p>
+            <select id="select-lider-login" class="custom-select mb-3 text-center"></select>
+            <button class="btn-primary-full" id="btn-login" onclick="fazerLogin()">ACESSAR</button>
+        </div>
+
+        <!-- App -->
+        <div id="tela-app" class="d-none" style="flex:1;display:flex;flex-direction:column;">
+            <div class="app-header">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div onclick="abrirSeletorArea()" style="cursor: pointer;">
+                        <div style="font-size:0.7rem;opacity:0.8;display: flex; align-items: center; gap: 4px;">
+                            <span id="header-area">CARREGANDO...</span>
+                            <i class="fas fa-chevron-down" style="font-size: 0.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold mb-0" id="header-nome">--</h5>
+                    </div>
+                    <div class="avatar-circle" id="header-avatar">?</div>
+                </div>
+                <div class="mt-2">
+                    <span class="badge bg-white text-dark small fw-bold py-2 px-3 shadow-sm" id="header-turno"
+                        style="font-size: 0.6rem;">TURNO --</span>
+                </div>
+            </div>
+
+            <div style="flex:1;padding-bottom:100px;">
+
+                <!-- HOME -->
+                <div id="tab-home" class="tab-content">
+                    <div class="balance-card">
+                        <div style="font-size:0.6rem;font-weight:700;color:#999;letter-spacing:1px;">MEU SALDO ATUAL
+                        </div>
+                        <div class="balance-num my-1" id="saldo-num">0</div>
+                        <div class="status-badge s-done"><i class="fas fa-check-circle"></i> Em campo agora</div>
+                    </div>
+
+                    <div id="area-inbox" class="d-none">
+                        <div class="section-title text-danger animate-pulse"><i class="fas fa-exclamation-triangle"></i>
+                            Trocas Pendentes</div>
+                        <div id="lista-trocas-inbox"></div>
+                    </div>
+
+                    <div class="section-title">Ações Rápidas</div>
+                    <div class="quick-actions">
+                        <div class="quick-btn" onclick="irParaTab('tab-pedir')">
+                            <div class="icon-wrap" style="background:#FFF3F0;"><i class="fas fa-plus text-danger"></i>
+                            </div>
+                            <span>Pedir PDA</span>
+                        </div>
+                        <div class="quick-btn" onclick="irParaTab('tab-trocar')">
+                            <div class="icon-wrap" style="background:#EEF2FF;"><i
+                                    class="fas fa-exchange-alt text-primary"></i></div>
+                            <span>Fazer Troca</span>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Minhas un. listadas</div>
+                    <div id="lista-meus-pdas"></div>
+                </div>
+
+                <!-- PEDIR -->
+                <div id="tab-pedir" class="tab-content d-none" style="padding:20px;">
+                    <h5 class="fw-bold"><i class="fas fa-plus-circle text-danger"></i> Novo Pedido</h5>
+                    <div class="mt-4">
+                        <label class="small fw-bold text-muted mb-2 d-block">QUANTIDADE</label>
+                        <input type="number" id="input-qtd-pedido" class="custom-input mb-4" placeholder="0">
+                        <label class="small fw-bold text-muted mb-2 d-block">MOTIVO (OPCIONAL)</label>
+                        <textarea id="input-obs-pedido" class="custom-input mb-4" rows="2"></textarea>
+                        <button class="btn-primary-full" id="btn-enviar-pedido" onclick="enviarPedido()">SOLICITAR
+                            AGORA</button>
+                    </div>
+                    <div class="section-title">Últimos Pedidos</div>
+                    <div id="lista-pedidos-historico"></div>
+                </div>
+
+                <!-- TROCAR -->
+                <div id="tab-trocar" class="tab-content d-none" style="padding:20px;">
+                    <h5 class="fw-bold"><i class="fas fa-exchange-alt text-primary"></i> Troca entre Líderes</h5>
+                    <div class="mt-4">
+                        <label class="small fw-bold text-muted mb-2 d-block">COLEGA DESTINO</label>
+                        <select id="select-colega-troca" class="custom-select mb-4"></select>
+                        <label class="small fw-bold text-muted mb-2 d-block">QUAIS PDAs? (MARQUE)</label>
+                        <div id="lista-selecao-pdas" class="mb-4"></div>
+                        <button class="btn-navy-full" id="btn-enviar-troca" onclick="enviarTroca()">PROPOR
+                            TROCA</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Nav -->
+            <div class="bottom-nav">
+                <button class="nav-btn active" id="btn-nav-home" onclick="irParaTab('tab-home')"><i
+                        class="fas fa-home"></i><span>Home</span></button>
+                <button class="nav-btn" id="btn-nav-pedir" onclick="irParaTab('tab-pedir')"><i
+                        class="fas fa-plus"></i><span>Pedir</span></button>
+                <button class="nav-btn" id="btn-nav-trocar" onclick="irParaTab('tab-trocar')"><i
+                        class="fas fa-exchange-alt"></i><span>Troca</span></button>
+                <button class="nav-btn" onclick="recarregarDados()"><i class="fas fa-sync"
+                        id="icon-sync"></i><span>Refrescar</span><span id="badge-notif"
+                        class="badge-notif d-none">!</span></button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let lider = "";
+        let bloqueado = false;
+        let listaAreasGlobal = [];
+
+        function toggarLoading(show) {
+            bloqueado = show;
+            document.getElementById('loader').classList.toggle('d-none', !show);
+            document.querySelectorAll('button').forEach(b => b.disabled = show);
+        }
+
+        window.onload = () => {
+            google.script.run.withSuccessHandler(res => {
+                const sel = document.getElementById('select-lider-login');
+                sel.innerHTML = '<option disabled selected value="">Selecione...</option>';
+                res.lideres.forEach(l => sel.innerHTML += `<option value="${l}">${l}</option>`);
+                document.getElementById('tela-identificacao').classList.remove('d-none');
+            }).getAppData();
+        };
+
+        function fazerLogin() {
+            lider = document.getElementById('select-lider-login').value;
+            if (!lider) return Swal.fire('Erro', 'Selecione seu nome', 'error');
+            toggarLoading(true);
+            recarregarDados();
+        }
+
+        function recarregarDados() {
+            if (bloqueado && lider) return;
+            const icon = document.getElementById('icon-sync');
+            if (icon) icon.classList.add('fa-spin');
+
+            google.script.run.withSuccessHandler(data => {
+                if (icon) icon.classList.remove('fa-spin');
+                toggarLoading(false);
+                if (!data.success) return;
+                renderizar(data);
+                document.getElementById('tela-identificacao').classList.add('d-none');
+                document.getElementById('tela-app').classList.remove('d-none');
+            }).getLiderAppData(lider || document.getElementById('select-lider-login').value);
+        }
+
+        function renderizar(d) {
+            document.getElementById('header-nome').innerText = d.liderNome;
+            document.getElementById('header-avatar').innerText = d.liderNome.charAt(0);
+            document.getElementById('header-area').innerText = d.minhaArea || 'Sem Área';
+            document.getElementById('header-turno').innerText = `${d.infoOp.dataOperacional} | ${d.infoOp.turno}`;
+            document.getElementById('saldo-num').innerText = d.saldo;
+            listaAreasGlobal = d.areasDisponiveis || [];
+
+            // Inbox de Trocas
+            const todasTrocas = d.trocasPendentes;
+            const areaIn = document.getElementById('area-inbox');
+            const listaIn = document.getElementById('lista-trocas-inbox');
+
+            // Notificamos se houver algo pra EU ACEITAR (destinatário da proposta e ainda pendente)
+            const pendenteEu = todasTrocas.filter(t => !t.ehMinhaProposta && t.meuStatus === 'PENDENTE' && t.statusGeral === 'AGUARDANDO');
+            document.getElementById('badge-notif').classList.toggle('d-none', pendenteEu.length === 0);
+
+            listaIn.innerHTML = "";
+            if (todasTrocas.length > 0) {
+                areaIn.classList.remove('d-none');
+                todasTrocas.forEach(t => {
+                    let conteudo = "";
+                    if (t.statusGeral === 'PENDENTE_ADMIN') {
+                        conteudo = `<div class="status-badge s-pending w-100 justify-content-center"><i class="fas fa-user-shield"></i> AGUARDANDO ADMIN</div>`;
+                    } else if (!t.ehMinhaProposta && t.meuStatus === 'PENDENTE') {
+                        conteudo = `
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success btn-sm w-100" onclick="respTroca('${t.id}', true)">Aceitar</button>
+                                <button class="btn btn-danger btn-sm w-100" onclick="respTroca('${t.id}', false)">Recusar</button>
+                            </div>`;
+                    } else {
+                        conteudo = `<div class="text-center small text-muted italic">Aguardando aceite do colega...</div>`;
+                    }
+
+                    listaIn.innerHTML += `
+                        <div class="card-item" style="border-left:5px solid ${t.statusGeral === 'PENDENTE_ADMIN' ? 'var(--primary)' : '#113366'};">
+                            <div class="small fw-bold">${t.ehMinhaProposta ? 'Para: ' + t.liderDestino : 'De: ' + t.liderOrigem}</div>
+                            <div class="text-primary small mb-2 fw-bold">${t.sns.join(', ')}</div>
+                            ${conteudo}
+                        </div>`;
+                });
+            } else { areaIn.classList.add('d-none'); }
+
+            // Meus PDAs
+            const listMeus = document.getElementById('lista-meus-pdas');
+            listMeus.innerHTML = '<div class="card-item"><div class="d-flex flex-wrap gap-2">' +
+                (d.meusAtivos.length ? d.meusAtivos.map(a => `<span class="sn-chip">${a.sn}</span>`).join('') : '<span class="text-muted small">Nenhum</span>') +
+                '</div></div>';
+
+            // Histórico pedidos
+            const hist = document.getElementById('lista-pedidos-historico');
+            hist.innerHTML = d.meusPedidos.slice(0, 3).map(p => `
+      <div class="card-item py-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="fw-bold">${p.qtd} un.</span>
+          <span class="status-badge ${p.status === 'PENDENTE' ? 's-pending' : p.status === 'CONCLUIDO' ? 's-done' : 's-rejected'}">${p.status}</span>
+        </div>
+      </div>
+    `).join('');
+
+            // Select colegas
+            const selC = document.getElementById('select-colega-troca');
+            selC.innerHTML = '<option disabled selected value="">Quem vai receber?</option>';
+            d.colegas.forEach(c => selC.innerHTML += `<option value="${c}">${c}</option>`);
+
+            // Checkbox trocas
+            const listSel = document.getElementById('lista-selecao-pdas');
+            listSel.innerHTML = d.meusAtivos.map(a => `
+      <label class="card-item m-1 p-2 d-inline-block" style="cursor:pointer;">
+        <input type="checkbox" class="sn-check" value="${a.sn}"> ${a.sn}
+      </label>
+    `).join('') || '<div class="text-muted small">Sem PDAs</div>';
+        }
+
+        function enviarPedido() {
+            const qtd = document.getElementById('input-qtd-pedido').value;
+            const obs = document.getElementById('input-obs-pedido').value;
+            if (!qtd || qtd <= 0) return;
+            toggarLoading(true);
+            google.script.run.withSuccessHandler(res => {
+                toggarLoading(false);
+                Swal.fire('OK', res.msg, res.success ? 'success' : 'error');
+                if (res.success) { document.getElementById('input-qtd-pedido').value = ""; irParaTab('tab-home'); recarregarDados(); }
+            }).criarPedidoEstoque(lider, qtd, obs);
+        }
+
+        function enviarTroca() {
+            const dest = document.getElementById('select-colega-troca').value;
+            const checks = document.querySelectorAll('.sn-check:checked');
+            const sns = Array.from(checks).map(c => c.value);
+            if (!dest || !sns.length) return Swal.fire('Erro', 'Escolha o colega e os PDAs', 'warning');
+            toggarLoading(true);
+            google.script.run.withSuccessHandler(res => {
+                toggarLoading(false);
+                Swal.fire('Troca', res.msg, 'info');
+                if (res.success) { irParaTab('tab-home'); recarregarDados(); }
+            }).criarSolicitacaoTroca(lider, dest, sns);
+        }
+
+        function respTroca(id, ok) {
+            toggarLoading(true);
+            google.script.run.withSuccessHandler(res => {
+                toggarLoading(false);
+                Swal.fire('Troca', res.msg, 'info');
+                recarregarDados();
+            }).responderTroca(id, lider, ok);
+        }
+
+        function irParaTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('d-none'));
+            document.getElementById(id).classList.remove('d-none');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[onclick*="${id}"]`).classList.add('active');
+        }
+
+        function abrirSeletorArea() {
+            if (!listaAreasGlobal.length) return Swal.fire('Aviso', 'Nenhuma área disponível cadastrada.', 'warning');
+
+            const options = {};
+            listaAreasGlobal.forEach(a => options[a] = a);
+
+            Swal.fire({
+                title: 'Selecione sua Área',
+                input: 'select',
+                inputOptions: options,
+                inputPlaceholder: 'Escolher...',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--navy)',
+                confirmButtonText: 'CONFIRMAR',
+                cancelButtonText: 'CANCELAR'
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    toggarLoading(true);
+                    google.script.run.withSuccessHandler(res => {
+                        toggarLoading(false);
+                        if (res.success) {
+                            Swal.fire('Sucesso', res.msg, 'success');
+                            recarregarDados();
+                        } else {
+                            Swal.fire('Erro', res.msg, 'error');
+                        }
+                    }).vincularAreaLider(lider, result.value);
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Controle de Ativos | Dashboard Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { brand: { blue: '#113366', orange: '#ee4d2d' } } } }
+        }
+    </script>
+    <style>
+        .toast-enter-active,
+        .toast-leave-active {
+            transition: all 0.3s ease;
+        }
+
+        .toast-enter-from,
+        .toast-leave-to {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800 font-sans antialiased">
+    <div id="app" class="flex h-screen overflow-hidden">
+
+        <!-- Toasts -->
+        <div class="fixed top-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full">
+            <transition-group name="toast">
+                <div v-for="toast in toasts" :key="toast.id"
+                    :class="['p-4 rounded-lg shadow-xl border-l-4 flex items-start gap-3', toast.tipo === 'sucesso' ? 'bg-white border-green-500' : 'bg-red-50 border-brand-orange']">
+                    <i
+                        :class="toast.tipo === 'sucesso' ? 'ph ph-check-circle text-green-500 text-2xl' : 'ph ph-warning-circle text-brand-orange text-2xl'"></i>
+                    <div class="flex-1 text-sm font-medium">{{ toast.mensagem }}</div>
+                    <button @click="removerToast(toast.id)" class="text-gray-400 hover:text-gray-600"><i
+                            class="ph ph-x"></i></button>
+                </div>
+            </transition-group>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-brand-blue text-white flex flex-col shadow-lg z-10 transition-transform">
+            <div class="p-6 border-b border-white/10 text-center">
+                <h1 class="text-2xl font-bold flex flex-col items-center gap-1">
+                    <i class="ph ph-barcode text-brand-orange text-5xl"></i>
+                    <div>Ativos<span class="text-brand-orange">MG2</span></div>
+                </h1>
+                <p class="text-[10px] uppercase tracking-tighter opacity-50 font-bold">Coordenação Operacional</p>
+            </div>
+            <nav class="flex-1 px-4 py-6 space-y-1">
+                <button @click="currentTab = 'dash'" :class="navClass('dash')"><i
+                        class="ph ph-squares-four text-xl"></i> Dashboard</button>
+                <button @click="currentTab = 'solicitacoes'" :class="navClass('solicitacoes')">
+                    <i class="ph ph-bell text-xl"></i>
+                    <span>Solicitações</span>
+                    <span v-if="solPendCount > 0"
+                        class="ml-auto bg-brand-orange text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-black shadow-sm">{{
+                        solPendCount }}</span>
+                </button>
+                <button @click="currentTab = 'emprestimo'" :class="navClass('emprestimo')"><i
+                        class="ph ph-handshake text-xl"></i> Saída Manual</button>
+                <button @click="currentTab = 'devolucao'" :class="navClass('devolucao')"><i
+                        class="ph ph-arrow-u-up-left text-xl"></i> Retorno</button>
+                <button @click="currentTab = 'planejamento'" :class="navClass('planejamento')"><i
+                        class="ph ph-calendar-plus text-xl"></i> Planejamento</button>
+                <button @click="currentTab = 'onpage'" :class="navClass('onpage')"><i
+                        class="ph ph-presentation-chart text-xl"></i> On Page</button>
+            </nav>
+            <div class="p-4 border-t border-white/5 text-center text-[10px] text-white/30 italic">v2.1 High Concurrency
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="flex-1 overflow-y-auto p-8 relative bg-slate-50">
+
+            <!-- Loader Block -->
+            <div v-if="loading"
+                class="fixed inset-0 bg-white/60 z-[100] flex flex-col items-center justify-center backdrop-blur-[1px]">
+                <div class="w-12 h-12 border-4 border-slate-200 border-t-brand-orange rounded-full animate-spin mb-4">
+                </div>
+                <p class="text-brand-blue font-black text-sm animate-pulse tracking-widest">SINCRONIZANDO FILA...</p>
+            </div>
+
+            <!-- DASHBOARD -->
+            <div v-show="currentTab === 'dash'" class="space-y-6 max-w-7xl mx-auto">
+                <div class="flex justify-between items-end bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-3xl font-black text-brand-blue flex items-center gap-2"><i
+                                class="ph-fill ph-chart-line text-brand-orange"></i> Visão Geral</h2>
+                        <p class="text-slate-400 text-sm">Monitoramento de ativos em tempo real.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="sincronizarEstrutura" :disabled="loading"
+                            class="bg-white text-slate-500 px-6 py-2.5 rounded-xl hover:bg-slate-50 flex items-center gap-2 border border-slate-200 transition-all font-bold disabled:opacity-50">
+                            <i class="ph ph-database text-xl"></i>
+                            Sincronizar Abas
+                        </button>
+                        <button @click="carregarDados" :disabled="loading"
+                            class="bg-brand-blue text-white px-6 py-2.5 rounded-xl hover:bg-[#0c2447] flex items-center gap-2 shadow-lg hover:shadow-brand-blue/30 transition-all font-bold group disabled:opacity-50">
+                            <i
+                                class="ph ph-arrows-clockwise text-xl group-hover:rotate-180 transition-transform duration-500"></i>
+                            Atualizar Agora
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div v-for="kpi in kpiCards" :key="kpi.label" @click="filtro.status = kpi.filterVal"
+                        :class="['p-6 rounded-2xl border flex items-center gap-5 cursor-pointer transition-all hover:-translate-y-1', filtro.status === kpi.filterVal ? kpi.activeClass : 'bg-white border-slate-200 hover:shadow-md']">
+                        <div :class="['p-4 rounded-xl', filtro.status === kpi.filterVal ? 'bg-white/20' : kpi.iconBg]">
+                            <i
+                                :class="['text-3xl', kpi.icon, filtro.status !== kpi.filterVal ? kpi.iconColor : '']"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black opacity-60 uppercase tracking-widest mb-1">{{ kpi.label }}
+                            </p>
+                            <p class="text-4xl font-black">{{ kpi.value }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px]">
+                    <div
+                        class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col xl:flex-row gap-4 items-center justify-between rounded-t-2xl">
+                        <div class="relative w-full xl:w-1/3 group">
+                            <i
+                                class="ph ph-magnifying-glass absolute left-4 top-3.5 text-slate-400 text-lg group-focus-within:text-brand-blue transition-colors"></i>
+                            <input type="text" v-model="filtro.busca" placeholder="Filtrar por SN..."
+                                class="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-brand-blue focus:ring-4 focus:ring-blue-50 outline-none font-mono text-sm transition-all">
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full xl:w-auto xl:justify-end">
+                            <select v-model="filtro.responsavel"
+                                class="px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-brand-blue outline-none text-sm font-bold text-slate-600 bg-white">
+                                <option value="">Todos Líderes</option>
+                                <option v-for="l in appData.lideres" :key="l" :value="l">{{ l }}</option>
+                            </select>
+                            <select v-model="filtro.status"
+                                class="px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-brand-blue outline-none text-sm font-bold text-slate-600 bg-white">
+                                <option value="">Todos Status</option>
+                                <option value="Disponível">Disponível</option>
+                                <option value="Emprestado">Emprestado</option>
+                                <option value="Quebrado">Quebrado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-white sticky top-0 shadow-sm z-10 border-b border-slate-100">
+                                <tr>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Serial
+                                        Number</th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Modelo
+                                    </th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Status
+                                    </th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Atribuído
+                                        a</th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest w-1/4">Obs
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                <tr v-for="item in estoqueFiltrado" :key="item.sn"
+                                    class="hover:bg-blue-50/40 transition-colors">
+                                    <td class="px-6 py-4 font-mono font-bold text-brand-blue text-sm"><i
+                                            class="ph ph-qr-code mr-2 opacity-30"></i>{{ item.sn }}</td>
+                                    <td class="px-6 py-4 text-slate-600 font-semibold">{{ item.modelo }}</td>
+                                    <td class="px-6 py-4">
+                                        <span v-if="item.status === 'Disponível'"
+                                            class="bg-green-100 text-green-700 px-3 py-1 rounded-full font-black text-[10px] flex items-center w-fit gap-1"><i
+                                                class="ph-fill ph-check-circle"></i> ESTOQUE</span>
+                                        <span v-if="item.status === 'Emprestado'"
+                                            class="bg-orange-100 text-brand-orange px-3 py-1 rounded-full font-black text-[10px] flex items-center w-fit gap-1"><i
+                                                class="ph-fill ph-user"></i> EM CAMPO</span>
+                                        <span v-if="item.status === 'Quebrado'"
+                                            class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-black text-[10px] flex items-center w-fit gap-1"><i
+                                                class="ph-fill ph-wrench"></i> AVARIA</span>
+                                    </td>
+                                    <td class="px-6 py-4 font-black text-slate-700">{{ item.responsavelAtual }}</td>
+                                    <td class="px-6 py-4 text-slate-400 italic">{{ item.obs || '-' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLICITAÇÕES -->
+            <div v-show="currentTab === 'solicitacoes'" class="space-y-6 max-w-4xl mx-auto">
+                <div class="flex justify-between items-end bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-3xl font-black text-brand-blue flex items-center gap-2"><i
+                                class="ph-fill ph-bell-ringing text-brand-orange"></i> Pedidos de Líderes</h2>
+                        <p class="text-slate-400 text-sm">Gerencie solicitações vindas pelo App Mobile.</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-4">
+                    <div v-for="sol in solListFiltrada" :key="sol.id"
+                        class="bg-white p-5 rounded-2xl border-2 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-lg"
+                        :class="solStatusClass(sol.status)">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-brand-blue font-black text-xl shadow-inner border border-slate-100">
+                                {{ sol.lider.charAt(0) }}</div>
+                            <div>
+                                <h4 class="font-black text-brand-blue">{{ sol.lider }}</h4>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ sol.data }}
+                                </p>
+                                <p v-if="sol.obs" class="text-xs text-slate-500 mt-1 italic">"{{ sol.obs }}"</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col md:items-end gap-3">
+                            <div class="text-3xl font-black text-brand-orange">{{ sol.qtd }} <span
+                                    class="text-xs text-slate-400 font-bold">PDAs</span></div>
+                            <div v-if="sol.status === 'PENDENTE'" class="flex gap-2">
+                                <button @click="acaoSol(sol, 'REJEITADO')" :disabled="loading"
+                                    class="bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-xs font-black hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100">REJEITAR</button>
+                                <button @click="acaoSol(sol, 'APROVADO')" :disabled="loading"
+                                    class="bg-brand-blue text-white px-6 py-2 rounded-xl text-xs font-black shadow-md hover:bg-[#0c2447]">APROVAR</button>
+                            </div>
+                            <div v-else-if="sol.status === 'APROVADO'">
+                                <button @click="abrirModalEntrega(sol)" :disabled="loading"
+                                    class="bg-brand-orange text-white px-6 py-3 rounded-xl text-xs font-black shadow-lg shadow-brand-orange/30 hover:shadow-brand-orange/50 transition-all flex items-center gap-2">
+                                    <i class="ph-bold ph-barcode"></i> ENTREGAR AGORA
+                                </button>
+                            </div>
+                            <span v-else
+                                class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border"
+                                :class="sol.status==='CONCLUIDO'?'bg-green-50 text-green-700 border-green-200':'bg-slate-50 text-slate-400 border-slate-200'">{{
+                                sol.status }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO DE TROCAS (NOVO) -->
+                <div class="mt-12 space-y-4">
+                    <h3 class="text-xl font-black text-brand-blue flex items-center gap-2 px-2">
+                        <i class="ph ph-arrows-left-right text-brand-orange"></i> Trocas entre Líderes
+                    </h3>
+                    <div class="grid gap-4">
+                        <div v-for="trc in appData.trocasAdmin" :key="trc.id"
+                            class="bg-white p-5 rounded-2xl border-2 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-lg"
+                            :class="trc.statusGeral === 'PENDENTE_ADMIN' ? 'border-orange-200 bg-orange-50/20' : 'border-slate-100 opacity-60'">
+                            <div class="flex items-center gap-4">
+                                <div class="flex -space-x-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-brand-blue text-white flex items-center justify-center font-black border-2 border-white shadow-sm">
+                                        {{ trc.origem.charAt(0) }}</div>
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-brand-orange text-white flex items-center justify-center font-black border-2 border-white shadow-sm">
+                                        {{ trc.destino.charAt(0) }}</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-brand-blue">{{ trc.origem }} <i
+                                            class="ph ph-arrow-right mx-1 text-slate-300"></i> {{ trc.destino }}</h4>
+                                    <p class="text-[10px] font-bold text-slate-400 tracking-widest">{{ trc.data }}</p>
+                                    <div class="flex flex-wrap gap-1 mt-2">
+                                        <span v-for="sn in trc.sns.split(',')" :key="sn"
+                                            class="text-[9px] font-mono font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200">{{
+                                            sn }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col md:items-end gap-2">
+                                <div v-if="trc.statusGeral === 'PENDENTE_ADMIN'" class="flex gap-2">
+                                    <button @click="acaoTroca(trc.id, false)" :disabled="loading"
+                                        class="bg-slate-100 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-red-50 hover:text-red-500">RECUSAR</button>
+                                    <button @click="acaoTroca(trc.id, true)" :disabled="loading"
+                                        class="bg-brand-orange text-white px-5 py-2 rounded-xl text-[10px] font-black shadow-md hover:scale-105 active:scale-95 transition-all">APROVAR
+                                        TROCA</button>
+                                </div>
+                                <div v-else-if="trc.statusGeral === 'AGUARDANDO'"
+                                    class="text-[9px] font-black text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 flex items-center gap-1">
+                                    <i class="ph ph-clock"></i> AGUARDANDO ACEITE DOS LÍDERES
+                                </div>
+                                <span v-else
+                                    class="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border bg-slate-50 text-slate-400 border-slate-200">{{
+                                    trc.statusGeral }}</span>
+                            </div>
+                        </div>
+                        <div v-if="!appData.trocasAdmin || !appData.trocasAdmin.length"
+                            class="text-center py-10 text-slate-300 font-bold border-2 border-dashed border-slate-200 rounded-2xl">
+                            Nenhuma troca pendente.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL ENTREGA -->
+            <div v-if="modal.ativo"
+                class="fixed inset-0 bg-brand-blue/90 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+                <div class="bg-white rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden animate-in">
+                    <div class="bg-brand-orange p-8 text-white">
+                        <p class="text-[10px] font-black uppercase tracking-[3px] opacity-70 mb-2">Checkout de Ativos
+                        </p>
+                        <h3 class="text-3xl font-black">{{ modal.sol.lider }}</h3>
+                        <div
+                            class="flex justify-between items-center mt-6 bg-white/10 p-4 rounded-2xl border border-white/20">
+                            <div>
+                                <p class="text-[10px] font-bold opacity-70">PEDIDO</p>
+                                <p class="text-xl font-black">{{ modal.sol.qtd }} un.</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] font-bold opacity-70">BIPADOS</p>
+                                <p class="text-xl font-black">{{ modal.sns.length }} / {{ modal.sol.qtd }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-8 space-y-6">
+                        <input type="text" v-model="modal.currentSn" @keyup.enter="biparNoModal" ref="inputModal"
+                            placeholder="BIPE O CÓDIGO AQUI"
+                            class="w-full bg-slate-50 border-2 border-brand-orange/20 rounded-2xl px-6 py-5 text-center font-mono font-black text-2xl text-brand-blue focus:border-brand-orange focus:ring-4 focus:ring-orange-100 outline-none transition-all placeholder:text-slate-200 placeholder:font-sans">
+                        <div class="space-y-2 max-h-48 overflow-auto custom-scrollbar">
+                            <div v-for="(sn, i) in modal.sns" :key="i"
+                                class="flex justify-between items-center bg-slate-50 border border-slate-100 px-5 py-3 rounded-xl group transition-all">
+                                <span class="font-mono font-black text-brand-blue tracking-tighter">{{ sn }}</span>
+                                <button @click="modal.sns.splice(i, 1)"
+                                    class="text-slate-300 hover:text-red-500 font-black"><i
+                                        class="ph-bold ph-x"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 pt-4">
+                            <button @click="modal.ativo = false"
+                                class="flex-1 py-4 text-slate-400 font-black text-xs hover:text-slate-600 transition-colors">CANCELAR</button>
+                            <button @click="finalizarEntrega" :disabled="!modal.sns.length || loading"
+                                class="flex-[2] bg-brand-orange text-white py-4 rounded-2xl font-black shadow-xl shadow-brand-orange/30 disabled:opacity-30 disabled:shadow-none hover:bg-brand-dark transition-all scale-100 active:scale-95">CONFIRMAR
+                                ENVIO</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMPRESTIMO MANUAL -->
+            <div v-show="currentTab === 'emprestimo'" class="max-w-2xl mx-auto space-y-8">
+                <div
+                    class="bg-white p-8 rounded-3xl border-2 border-slate-100 shadow-sm space-y-8 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-brand-blue"></div>
+                    <h3 class="text-2xl font-black text-brand-blue flex items-center gap-3"><i
+                            class="ph ph-hand-pointing text-brand-orange"></i> Saída Manual</h3>
+                    <div>
+                        <label
+                            class="text-[10px] font-black text-slate-400 mb-2 block tracking-widest">RESPONSÁVEL</label>
+                        <select v-model="formEmp.responsavel"
+                            class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-brand-blue outline-none font-bold text-slate-600 bg-white">
+                            <option disabled value="">Selecione na lista...</option>
+                            <option v-for="l in appData.lideres" :key="l" :value="l">{{ l }}</option>
+                        </select>
+                    </div>
+                    <div class="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
+                        <label class="text-[10px] font-black text-brand-blue mb-2 block tracking-widest">BIPAR
+                            SCANNER</label>
+                        <input type="text" v-model="formEmp.curSn" @keyup.enter="biparManual" ref="inpEmp"
+                            class="w-full px-5 py-4 border-2 border-brand-orange/30 rounded-2xl focus:border-brand-orange outline-none font-mono font-black text-xl text-center uppercase tracking-widest">
+                    </div>
+                    <div v-if="formEmp.sns.length" class="space-y-3">
+                        <div v-for="(item, idx) in formEmp.sns" :key="idx"
+                            :class="['p-4 rounded-2xl border-2 flex flex-col gap-3', item.pendente?'border-orange-300 bg-orange-50':'border-slate-50 bg-slate-50/30']">
+                            <div class="flex justify-between items-center font-mono font-black text-brand-blue">
+                                <span class="text-lg">{{ item.sn }}</span>
+                                <button @click="formEmp.sns.splice(idx,1)" class="text-slate-300 hover:text-red-500"><i
+                                        class="ph-bold ph-trash"></i></button>
+                            </div>
+                            <div v-if="item.pendente" class="flex gap-2">
+                                <input v-model="item.obsTemp" placeholder="Justifique o conflito..."
+                                    class="flex-1 px-3 py-2 text-xs border border-orange-200 rounded-lg outline-none">
+                                <button
+                                    @click="item.forcar=true; item.pendente=false; item.obs='[FORÇADO] '+item.obsTemp"
+                                    class="bg-brand-orange text-white px-4 py-2 rounded-lg text-xs font-black">OK</button>
+                            </div>
+                            <p v-if="item.pendente" class="text-[10px] font-bold text-orange-600 uppercase">{{
+                                item.erroMsg }}</p>
+                        </div>
+                    </div>
+                    <button @click="salvarEmp" :disabled="!formEmp.sns.length || !formEmp.responsavel || loading"
+                        class="w-full bg-brand-blue text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-blue/20 hover:bg-[#0c2447] disabled:opacity-20 transition-all">REGISTRAR
+                        SAÍDA</button>
+                </div>
+            </div>
+
+            <!-- RETORNO (DEVOLUCAO) -->
+            <div v-show="currentTab === 'devolucao'" class="max-w-2xl mx-auto space-y-8">
+                <div
+                    class="bg-white p-8 rounded-3xl border-2 border-slate-100 shadow-sm space-y-8 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-brand-orange"></div>
+                    <h3 class="text-2xl font-black text-brand-blue flex items-center gap-3"><i
+                            class="ph ph-arrow-u-up-left text-brand-orange"></i> Retorno de Ativos</h3>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 mb-2 block tracking-widest">DEVOLVIDO
+                            POR</label>
+                        <select v-model="formDev.responsavel"
+                            class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-brand-orange outline-none font-bold text-slate-600 bg-white">
+                            <option disabled value="">Quem está entregando?</option>
+                            <option v-for="r in respAtivos" :key="r" :value="r">{{ r }}</option>
+                        </select>
+                    </div>
+                    <div class="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
+                        <label class="text-[10px] font-black text-brand-orange mb-2 block tracking-widest">BIPAR
+                            SCANNER</label>
+                        <input type="text" v-model="formDev.curSn" @keyup.enter="biparDev" ref="inpDev"
+                            class="w-full px-5 py-4 border-2 border-brand-blue/30 rounded-2xl focus:border-brand-blue outline-none font-mono font-black text-xl text-center uppercase tracking-widest">
+                    </div>
+                    <div v-if="formDev.sns.length" class="space-y-3">
+                        <div v-for="(item, idx) in formDev.sns" :key="idx"
+                            :class="['p-4 rounded-2xl border-2 flex flex-col gap-3', item.pendente ? 'border-red-300 bg-red-50' : 'border-slate-50 bg-slate-50/30']">
+                            <div class="flex justify-between items-center font-mono font-black text-brand-blue">
+                                <span class="text-lg">{{ item.sn }}</span>
+                                <button @click="formDev.sns.splice(idx,1)" class="text-slate-300 hover:text-red-500"><i
+                                        class="ph-bold ph-trash"></i></button>
+                            </div>
+                            <div class="flex gap-2">
+                                <select v-model="item.condicao" class="px-3 py-2 rounded-xl text-xs font-black border-2"
+                                    :class="item.condicao==='OK'?'border-green-200 text-green-700':'border-red-200 text-red-700'">
+                                    <option value="OK">CONDIÇÃO: OK</option>
+                                    <option value="Quebrado">AVARIADO / QUEBRADO</option>
+                                </select>
+                                <input v-if="item.condicao==='Quebrado' || item.forcar" v-model="item.obs"
+                                    placeholder="Motivo da avaria..."
+                                    class="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-lg outline-none">
+                            </div>
+                            <div v-if="item.pendente" class="pt-2 border-t border-red-100 flex gap-2">
+                                <input v-model="item.obsTemp" placeholder="Justifique o conflito..."
+                                    class="flex-1 px-3 py-2 text-xs border border-red-300 rounded-lg outline-none">
+                                <button
+                                    @click="item.forcar=true; item.pendente=false; item.obs='[CONCLUIDO] '+item.obsTemp"
+                                    class="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-black">OK</button>
+                            </div>
+                            <p v-if="item.pendente" class="text-[10px] font-bold text-red-600 uppercase">{{ item.erroMsg
+                                }}</p>
+                        </div>
+                    </div>
+                    <button @click="salvarDev" :disabled="!formDev.sns.length || !formDev.responsavel || loading"
+                        class="w-full bg-brand-orange text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-orange/20 hover:bg-[#d64428] disabled:opacity-20 transition-all">FINALIZAR
+                        RETORNO</button>
+                </div>
+            </div>
+
+            <!-- ON PAGE (GESTÃO POR ÁREA) -->
+            <div v-show="currentTab === 'onpage'" class="space-y-6 max-w-7xl mx-auto">
+                <div
+                    class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-black text-brand-blue flex items-center gap-2"><i
+                                class="ph-fill ph-target text-brand-orange"></i> Realizado vs Planejado</h2>
+                        <p class="text-slate-400 text-sm">Monitoramento de ativos em tempo real.</p>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <input type="date" v-model="filtroOnPage.data"
+                            class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-brand-blue">
+                        <select v-model="filtroOnPage.turno"
+                            class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-brand-blue">
+                            <option value="T1">T1 (06-14h)</option>
+                            <option value="T2">T2 (14-22h)</option>
+                            <option value="T3">T3 (22-05h)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div v-for="area in dashboardAreasFiltradas" :key="area.area"
+                        class="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
+                        <div class="absolute inset-0 bg-slate-50/50 -z-10"></div>
+
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h4 class="font-black text-brand-blue text-xl">{{ area.area }}</h4>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[2px]">Área
+                                    Operacional</p>
+                            </div>
+                            <div class="bg-brand-orange/10 text-brand-orange p-3 rounded-2xl">
+                                <i class="ph-fill ph-users text-2xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-end">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-brand-blue">Realizado</span>
+                                    <span class="text-4xl font-black text-brand-blue">{{ area.realizado }}</span>
+                                </div>
+                                <div class="text-right flex flex-col">
+                                    <span
+                                        class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Planejado</span>
+                                    <span class="text-xl font-black text-slate-300">{{ area.planejado || '--' }}</span>
+                                </div>
+                            </div>
+
+                            <div v-if="area.planejado > 0"
+                                class="w-full h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                <div class="h-full transition-all duration-1000 ease-out flex items-center justify-end px-2"
+                                    :class="area.realizado > area.planejado ? 'bg-red-500' : area.realizado === area.planejado ? 'bg-green-500' : 'bg-brand-orange'"
+                                    :style="{ width: Math.min((area.realizado / area.planejado) * 100, 100) + '%' }">
+                                    <span v-if="area.realizado > 0" class="text-[8px] font-black text-white">{{
+                                        Math.round((area.realizado / area.planejado) * 100) }}%</span>
+                                </div>
+                            </div>
+                            <div v-if="area.realizado > area.planejado && area.planejado > 0"
+                                class="text-[9px] font-bold text-red-500 flex items-center gap-1">
+                                <i class="ph-fill ph-warning-circle"></i> ACIMA DO PLANEJADO
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLANEJAMENTO -->
+            <div v-show="currentTab === 'planejamento'" class="space-y-6 max-w-7xl mx-auto">
+                <div class="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                        <div>
+                            <h2 class="text-3xl font-black text-brand-blue flex items-center gap-3">
+                                <i class="ph-fill ph-calendar-plus text-brand-orange"></i> Define o Planejado
+                            </h2>
+                            <p class="text-slate-400 text-sm font-medium">Cadastre a quantidade de PDAs por área e
+                                turno.</p>
+                        </div>
+                        <div class="flex gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 w-full md:w-auto">
+                            <input type="date" v-model="formPlan.data"
+                                class="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-brand-blue">
+                            <select v-model="formPlan.turno"
+                                class="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-brand-blue">
+                                <option value="T1">TURNO 1</option>
+                                <option value="T2">TURNO 2</option>
+                                <option value="T3">TURNO 3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                        <div v-for="area in uniqueAreas" :key="area"
+                            class="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-brand-orange transition-all">
+                            <span class="font-black text-brand-blue">{{ area }}</span>
+                            <input type="number" v-model="formPlan.areas[area]"
+                                class="w-24 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-brand-orange outline-none text-center font-black text-lg">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-6 border-t border-slate-100">
+                        <button @click="salvarDadosPlanejamento" :disabled="loading"
+                            class="bg-brand-blue text-white px-10 py-5 rounded-2xl font-black shadow-2xl shadow-brand-blue/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3">
+                            <i class="ph ph-floppy-disk text-xl"></i> SALVAR PLANEJAMENTO OPERACIONAL
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    currentTab: 'dash', loading: false, toasts: [],
+                    appData: { lideres: [], areaDeLider: {}, estoque: [], emprestimosAtivos: [], kpis: { total: 0, disponiveis: 0, emprestados: 0, quebrados: 0 }, solicitacoes: [], consolidadoReal: {}, mapPlan: {}, infoOpAtual: {} },
+                    filtro: { busca: '', status: '', modelo: '', responsavel: '' },
+                    formEmp: { responsavel: '', curSn: '', sns: [] },
+                    formDev: { responsavel: '', curSn: '', sns: [] },
+                    modal: { ativo: false, sol: null, sns: [], currentSn: '' },
+                    formPlan: { data: '', turno: 'T1', areas: {} },
+                    filtroOnPage: { data: '', turno: '' }
+                }
+            },
+            computed: {
+                solPendCount() { return this.appData.solicitacoes.filter(s => s.status === 'PENDENTE').length; },
+                solListFiltrada() { return this.appData.solicitacoes; },
+                kpiCards() {
+                    const k = this.appData.kpis;
+                    return [
+                        { label: 'Ativos Totais', value: k.total, filterVal: '', icon: 'ph-fill ph-package', iconBg: 'bg-blue-50', iconColor: 'text-brand-blue', activeClass: 'bg-brand-blue text-white border-brand-blue shadow-lg' },
+                        { label: 'Em Estoque', value: k.disponiveis, filterVal: 'Disponível', icon: 'ph-fill ph-check-circle', iconBg: 'bg-green-50', iconColor: 'text-green-600', activeClass: 'bg-green-600 text-white border-green-600 shadow-lg' },
+                        { label: 'Líderes', value: k.emprestados, filterVal: 'Emprestado', icon: 'ph-fill ph-users', iconBg: 'bg-orange-50', iconColor: 'text-brand-orange', activeClass: 'bg-brand-orange text-white border-brand-orange shadow-lg' },
+                        { label: 'Avariados', value: k.quebrados, filterVal: 'Quebrado', icon: 'ph-fill ph-wrench', iconBg: 'bg-red-50', iconColor: 'text-red-600', activeClass: 'bg-red-600 text-white border-red-600 shadow-lg' },
+                    ];
+                },
+                estoqueFiltrado() {
+                    return this.appData.estoque.filter(i => {
+                        const t = this.filtro.busca.toLowerCase();
+                        return (t === '' || i.sn.toLowerCase().includes(t)) &&
+                            (this.filtro.status === '' || i.status === this.filtro.status) &&
+                            (this.filtro.responsavel === '' || i.responsavelAtual === this.filtro.responsavel);
+                    });
+                },
+                uniqueAreas() { return [...new Set(Object.values(this.appData.areaDeLider))].sort(); },
+                dashboardAreasFiltradas() {
+                    if (!this.filtroOnPage.data || !this.filtroOnPage.turno) return [];
+                    return this.uniqueAreas.map(area => {
+                        const chave = `${this.filtroOnPage.data}_${this.filtroOnPage.turno}_${area}`;
+                        return {
+                            area: area,
+                            realizado: (this.appData.consolidadoReal[area] || 0),
+                            planejado: (this.appData.mapPlan[chave] || 0)
+                        };
+                    });
+                }
+            },
+            mounted() { this.carregarDados(); setInterval(this.carregarDados, 60000); },
+            watch: {
+                currentTab(t) { if (t === 'emprestimo') setTimeout(() => this.$refs.inpEmp?.focus(), 100); else if (t === 'devolucao') setTimeout(() => this.$refs.inpDev?.focus(), 100); },
+                'modal.ativo'(v) { if (v) setTimeout(() => this.$refs.inputModal?.focus(), 200); }
+            },
+            methods: {
+                navClass(t) {
+                    return `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${this.currentTab === t ? 'bg-brand-orange text-white shadow-xl shadow-brand-orange/20' : 'text-slate-400 hover:text-white hover:bg-white/5'}`;
+                },
+                solStatusClass(s) {
+                    if (s === 'PENDENTE') return 'border-yellow-100 bg-yellow-50/20';
+                    if (s === 'APROVADO') return 'border-blue-100 bg-blue-50/20';
+                    if (s === 'CONCLUIDO') return 'border-green-100 bg-green-50/20';
+                    return 'border-slate-100 opacity-60';
+                },
+                msg(txt, tipo = 'sucesso') { this.toasts.push({ id: Date.now(), mensagem: txt, tipo }); setTimeout(() => this.toasts.shift(), 5000); },
+                carregarDados() {
+                    if (this.loading) return;
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(d => {
+                        this.appData = d;
+                        this.loading = false;
+                        // Inicializa filtros se vazios
+                        if (!this.filtroOnPage.data) {
+                            this.filtroOnPage.data = d.infoOpAtual.dataOperacional;
+                            this.filtroOnPage.turno = d.infoOpAtual.turno;
+                        }
+                        if (!this.formPlan.data) {
+                            this.formPlan.data = d.infoOpAtual.dataOperacional;
+                            this.formPlan.turno = d.infoOpAtual.turno;
+                            this.uniqueAreas.forEach(a => {
+                                const chave = `${this.formPlan.data}_${this.formPlan.turno}_${a}`;
+                                this.formPlan.areas[a] = d.mapPlan[chave] || 0;
+                            });
+                        }
+                    })
+                        .withFailureHandler(e => { this.loading = false; this.msg("Erro: " + e.message, 'erro'); })
+                        .getAppData();
+                },
+                acaoSol(sol, acao) {
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => { this.loading = false; this.msg(r.msg); this.carregarDados(); })
+                        .withFailureHandler(e => { this.loading = false; this.msg(e.message, 'erro'); })
+                        .aprovarOuRejeitarPedido(sol.id, acao, sol._obsAdmin || '');
+                },
+                acaoTroca(id, ok) {
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => { this.loading = false; this.msg(r.msg, r.success ? 'sucesso' : 'erro'); this.carregarDados(); })
+                        .withFailureHandler(e => { this.loading = false; this.msg(e.message, 'erro'); })
+                        .aprovarTrocaAdmin(id, ok);
+                },
+                abrirModalEntrega(sol) { this.modal = { ativo: true, sol, sns: [], currentSn: '' }; },
+                biparNoModal() {
+                    const sn = this.modal.currentSn.trim().toUpperCase();
+                    if (!sn || this.modal.sns.includes(sn)) { this.modal.currentSn = ''; return; }
+                    this.modal.sns.push(sn); this.modal.currentSn = '';
+                },
+                finalizarEntrega() {
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => {
+                        this.loading = false; this.modal.ativo = false;
+                        if (r.success) { this.msg(r.msg); this.carregarDados(); } else this.msg(r.msg, 'erro');
+                    }).concluirEntregaLider(this.modal.sol.id, this.modal.sol.lider, this.modal.sns);
+                },
+                biparManual() {
+                    const sn = this.formEmp.curSn.trim().toUpperCase();
+                    if (!sn || this.formEmp.sns.find(i => i.sn === sn)) { this.formEmp.curSn = ''; return; }
+                    this.formEmp.sns.push({ sn, forcar: false, obs: '', pendente: false, erroMsg: '', obsTemp: '' });
+                    this.formEmp.curSn = '';
+                    this.$nextTick(() => this.$refs.inpEmp.focus());
+                },
+                salvarEmp() {
+                    let temP = false;
+                    this.formEmp.sns.forEach(i => {
+                        if (i.forcar) return;
+                        const st = this.appData.estoque.find(e => e.sn === i.sn);
+                        if (!st || st.status !== 'Disponível') { i.pendente = true; i.erroMsg = st ? `Ativo: ${st.status}` : 'Não existe'; temP = true; }
+                    });
+                    if (temP) return this.msg("Atenção aos itens em laranja", 'erro');
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => { this.loading = false; this.msg(r.sucesso + " ativos registrados"); this.formEmp = { responsavel: '', curSn: '', sns: [] }; this.carregarDados(); })
+                        .registrarEmprestimo(this.formEmp.responsavel, this.formEmp.sns);
+                },
+                biparDev() {
+                    const sn = this.formDev.curSn.trim().toUpperCase();
+                    if (!sn || this.formDev.sns.find(i => i.sn === sn)) { this.formDev.curSn = ''; return; }
+                    this.formDev.sns.push({ sn, condicao: 'OK', obs: '', forcar: false, pendente: false, erroMsg: '', obsTemp: '' });
+                    this.formDev.curSn = '';
+                },
+                salvarDev() {
+                    let temP = false;
+                    this.formDev.sns.forEach(i => {
+                        if (i.forcar) return;
+                        const emp = this.appData.emprestimosAtivos.find(e => e.sn === i.sn);
+                        if (!emp || emp.responsavel.toLowerCase() !== this.formDev.responsavel.toLowerCase()) { i.pendente = true; i.erroMsg = "Não pertence a este líder"; temP = true; }
+                    });
+                    if (temP) return this.msg("Conflito de dono detectado", 'erro');
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => { this.loading = false; this.msg(r.sucesso + " retorno(s) processado(s)"); this.formDev = { responsavel: '', curSn: '', sns: [] }; this.carregarDados(); })
+                        .registrarDevolucao(this.formDev.responsavel, this.formDev.sns);
+                },
+                salvarDadosPlanejamento() {
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => {
+                        this.loading = false;
+                        this.msg(r.msg);
+                        this.carregarDados();
+                    }).salvarPlanejamento(this.formPlan.data, this.formPlan.turno, this.formPlan.areas);
+                },
+                sincronizarEstrutura() {
+                    this.loading = true;
+                    google.script.run.withSuccessHandler(r => {
+                        this.loading = false;
+                        this.msg(r.msg);
+                        this.carregarDados();
+                    }).setupPlanilha();
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
