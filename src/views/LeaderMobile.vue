@@ -65,6 +65,14 @@
       </div>
 
       <!-- Content Area -->
+      <div class="flex-1 -mt-16 px-5 pb-24 z-10 transition-all overflow-y-auto">
+        <!-- Balance Card -->
+        <div v-if="currentTab === 'home'" class="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 mb-6 animate-in zoom-in-95 duration-200">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Meus Coletores</p>
+          <div class="text-6xl font-black text-[#EE4D2D] leading-none mb-3">{{ myAssets.length }}</div>
+          <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase">
+            <i class="ph-fill ph-check-circle"></i> Em operação
+          </div>
         </div>
 
         <!-- Meta do Turno -->
