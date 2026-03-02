@@ -1026,16 +1026,69 @@ const handleDeleteAsset = async (sn) => {
     finally { loading.value = false; }
 };
 
+const handleResponseTroca = async (id, approved) => {
+    loading.value = true;
+    try {
+        if (!approved) {
+            await supabase.from('trocas').update({ status_geral: 'CANCELADO' }).eq('id', id);
+            showMessage('Troca rejeitada!');
+        } else {
+            // Get transfer details
+            const { data: trc } = await supabase.from('trocas').select('*').eq('id', id).single();
+            if (!trc) throw new Error('Troca não encontrada');
+
+            const { sns, lider_destino, lider_origem } = trc;
+
+            // 1. Remove from origin
+            await supabase.from('ativos_atuais').delete().in('sn', sns).eq('responsavel_id', lider_origem);
+            
+            // 2. Add to destination
+            const inserts = sns.map(sn => ({ sn, responsavel_id: lider_destino }));
+            await supabase.from('ativos_atuais').upsert(inserts);
+
+            // 3. Log the move
+            const logs = sns.map(sn => ({ 
+                sn, 
+                responsavel_id: lider_destino, 
+                tipo: 'Troca-Entrada', 
+                admin_id: 'Admin Web',
+                observacao: `Vindo de ${trc.lideres_origem?.nome || 'Líder Anterior'}`
+            }));
+            await supabase.from('movimentacoes').insert(logs);
+
+            // 4. Update transfer status
+            await supabase.from('trocas').update({ status_geral: 'CONCLUIDO' }).eq('id', id);
+
+            showMessage('Troca aprovada e ativos transferidos!');
+        }
+        await fetchInitialData();
+    } catch (e) {
+        showMessage(e.message, 'erro');
+    } finally {
+        loading.value = false;
+    }
+};
+
 // Subscriptions
 let allChannel;
 
+let debounceTimeout;
+
 onMounted(() => {
   fetchInitialData();
-  allChannel = supabase.channel('global-changes').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchInitialData()).subscribe();
+  allChannel = supabase.channel('global-changes')
+    .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+            fetchInitialData();
+        }, 800);
+    })
+    .subscribe();
 });
 
 onUnmounted(() => {
   if (allChannel) supabase.removeChannel(allChannel);
+  clearTimeout(debounceTimeout);
 });
 </script>
 

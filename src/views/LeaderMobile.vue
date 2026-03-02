@@ -528,6 +528,7 @@ const handleChangeArea = async (areaId, areaNome) => {
     userData.value.area_id = areaId;
     userData.value.areas = { nome: areaNome };
     showingAreaSelector.value = false;
+    await fetchInitialData();
     showMessage('Área alterada com sucesso!');
   } catch (e) {
     showMessage(e.message, 'erro');
