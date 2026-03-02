@@ -255,7 +255,10 @@
           <div v-if="formDev.list.length" class="space-y-3">
             <div v-for="(item, idx) in formDev.list" :key="idx" class="p-4 bg-white rounded-2xl border border-slate-100 space-y-3 shadow-sm">
               <div class="flex justify-between items-center font-mono font-black text-[#113366]">
-                <span class="text-lg">{{ item.sn }}</span>
+                <div class="flex flex-col">
+                  <span class="text-lg">{{ item.sn }}</span>
+                  <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Responsável: {{ item.responsavel }}</span>
+                </div>
                 <button @click="formDev.list.splice(idx,1)" class="text-slate-300 hover:text-red-500"><i class="ph-bold ph-trash"></i></button>
               </div>
               <div class="flex gap-2 font-sans">
@@ -777,6 +780,7 @@ const finishDelivery = async () => {
 
     showMessage(`Entrega de ${sns.length} coletor(es) concluída!`);
     modal.value.ativo = false;
+    await fetchInitialData(); // Force Refresh
   } catch (e) {
     showMessage(e.message, 'erro');
   } finally {
@@ -803,6 +807,7 @@ const handleRecordingLoan = async () => {
     await supabase.from('movimentacoes').insert(sns.map(sn => ({ sn, responsavel_id: responsavelId, tipo: 'Saída', admin_id: 'Admin Manual' })));
     showMessage(`${sns.length} ativos atribuídos com sucesso!`);
     formEmp.value = { responsavelId: '', curSn: '', sns: [] };
+    await fetchInitialData(); // Force Refresh
   } catch (e) {
     showMessage(e.message, 'erro');
   } finally {
@@ -813,8 +818,14 @@ const handleRecordingLoan = async () => {
 const handleBiparDev = () => {
   const sn = formDev.value.curSn.trim().toUpperCase();
   if (!sn) return;
+  const itemEst = estoque.value.find(e => e.sn === sn);
   if (!formDev.value.list.find(i => i.sn === sn)) {
-    formDev.value.list.push({ sn, condicao: 'OK', observacao: '' });
+    formDev.value.list.push({ 
+      sn, 
+      condicao: 'OK', 
+      observacao: '', 
+      responsavel: itemEst?.responsavel || 'Desconhecido' 
+    });
   }
   formDev.value.curSn = '';
 };
@@ -833,6 +844,7 @@ const handleRecordingReturn = async () => {
     }
     showMessage(`${sns.length} retornos processados!`);
     formDev.value = { curSn: '', list: [] };
+    await fetchInitialData(); // Force Refresh
   } catch (e) {
     showMessage(e.message, 'erro');
   } finally {
