@@ -875,12 +875,17 @@ const handleAddArea = async () => {
 };
 
 const handleDeleteArea = async (id) => {
-  if (!confirm('Excluir esta área?')) return;
+  if (!confirm('Excluir esta área? Isso também apagará o planejamento vinculado a ela.')) return;
   loading.value = true;
   try {
+    // 1. Apagar planejamento vinculado (Evita erro 409 Conflict)
+    await supabase.from('planejamento').delete().eq('area_id', id);
+
+    // 2. Apagar a área
     const { error } = await supabase.from('areas').delete().eq('id', id);
     if (error) throw error;
-    showMessage('Área excluída.');
+
+    showMessage('Área e planejamentos excluídos.');
     await fetchInitialData();
   } catch (e) { showMessage(e.message, 'erro'); }
   finally { loading.value = false; }
